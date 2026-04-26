@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-dotenv
+pydantic
+
+langchain
+langchain-community
+langchain-text-splitters
+langchain-chroma
+
+fastembed
+chromadb
