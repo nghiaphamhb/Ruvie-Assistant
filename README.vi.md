@@ -3,7 +3,7 @@
 ![Ruvie Agent Wallpaper](assets/wallpaper.png)
 
 <p align="center">
-  <strong>Backend RAG tối giản cho tài liệu Markdown, xây bằng FastAPI, LangChain, FastEmbed và Chroma</strong>
+  <strong>Ứng dụng RAG cục bộ tối giản cho kho tri thức Markdown, xây bằng FastAPI, Chroma, FastEmbed và client LLM tương thích OpenRouter.</strong>
 </p>
 
 ## Ngôn ngữ
@@ -14,15 +14,33 @@
 
 ## Tổng quan
 
-Ruvie Agent là backend RAG giai đoạn đầu, tập trung vào tài liệu Markdown. Dự án hiện có khả năng nạp tài liệu, chia chunk, tạo embedding bằng FastEmbed, lưu vector vào Chroma, truy xuất ngữ cảnh liên quan và chạy FastAPI với endpoint kiểm tra trạng thái.
+Ruvie Agent là ứng dụng RAG gọn nhẹ cho tài liệu Markdown cục bộ. Ứng dụng đọc các file Markdown, chia thành chunk, lưu embedding vào Chroma, truy xuất ngữ cảnh liên quan và sinh câu trả lời kèm nguồn tham chiếu qua cả web UI lẫn JSON API.
 
-## Trạng thái hiện tại
+## Ảnh minh họa
 
-- `app/services/ingest.py`: đọc Markdown từ `data/markdown`, chia nhỏ nội dung, tạo embedding và lưu vào `chroma_db`
-- `app/services/retriever.py`: tìm kiếm các đoạn liên quan bằng similarity search
-- `app/main.py`: hiện có endpoint `/health`
-- `data/markdown/`: nơi đặt tài liệu nguồn
-- `chroma_db/`: cơ sở dữ liệu vector sinh ra cục bộ
+![Ruvie App Example](assets/example.png)
+
+## Cấu trúc dự án
+
+- `app/main.py`: khởi tạo FastAPI, mount static files, phục vụ UI tại `/` và nạp API routes
+- `app/api/routes.py`: cung cấp `POST /ask` và `POST /ingest`
+- `app/core/config.py`: đọc biến môi trường từ `.env`
+- `app/core/logging_config.py`: cấu hình logging cho ứng dụng
+- `app/services/ingest.py`: đọc Markdown, chia chunk và lưu embedding vào Chroma
+- `app/services/retriever.py`: tìm kiếm tương tự trên vector store cục bộ
+- `app/services/llm.py`: dựng prompt RAG và gọi LLM qua OpenAI SDK với base URL tương thích OpenRouter
+- `app/static/index.html`: giao diện web đơn giản để hỏi đáp và xem nguồn
+- `data/markdown/`: kho tài liệu Markdown cục bộ
+- `chroma_db/`: cơ sở dữ liệu vector sinh ra sau khi ingest
+
+## Tính năng hiện có
+
+- Ingest tài liệu Markdown cục bộ
+- Tìm kiếm vector bằng Chroma
+- Tạo embedding với FastEmbed
+- Sinh câu trả lời kèm source preview
+- Giao diện web tại `GET /`
+- API cho luồng hỏi đáp và ingest
 
 ## Chạy nhanh
 
@@ -30,50 +48,62 @@ Ruvie Agent là backend RAG giai đoạn đầu, tập trung vào tài liệu Ma
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python app/services/ingest.py
+copy .env-example .env
 uvicorn app.main:app --reload
 ```
 
-## Lộ trình
+Sau khi server chạy, mở `http://localhost:8000`.
 
-### Phase 1: Hoàn thiện RAG core
+## Biến môi trường
 
-- Task 1: tạo `config.py` để đọc `LLM_API_KEY`, `LLM_MODEL`, `CHROMA_DIR`, `MARKDOWN_DIR` từ `.env`
-- Task 2: tạo `app/services/llm.py` cho luồng `context + question -> LLM -> answer`
-- Task 3: viết prompt RAG ép model chỉ trả lời theo context
-- Task 4: tạo `test_query.py` để test pipeline trước khi đưa vào FastAPI
+Khai báo các giá trị sau trong `.env`:
 
-### Phase 2: Đưa vào FastAPI
+- `LLM_API_KEY`
+- `LLM_MODEL`
+- `MARKDOWN_DIR`
+- `CHROMA_DIR`
+- `CHROMA_COLLECTION`
+- `OPENROUTER_BASE_URL`
+- `APP_NAME`
+- `APP_URL`
 
-- Task 5: tạo schema Pydantic `AskRequest` và `AskResponse`
-- Task 6: tạo endpoint `POST /ask` để search chunk, gọi LLM, trả answer và sources
-- Task 7: tạo endpoint `POST /ingest` để gọi lại `ingest_documents()`
-- Task 8: gắn routes vào `main.py`
+## Cách dùng cơ bản
 
-### Phase 3: Dọn code và debug
+1. Thêm file Markdown vào `data/markdown`
+2. Khởi động server
+3. Mở giao diện web tại `http://localhost:8000`
+4. Nếu vector store chưa có dữ liệu, gọi `POST /ingest`
+5. Đặt câu hỏi và xem `answer` cùng `sources`
 
-- Task 9: xử lý lỗi thiếu Chroma DB, thiếu file Markdown, question rỗng, thiếu LLM key, không có chunk phù hợp
-- Task 10: trả sources rõ hơn với `file` và `preview`
-- Task 11: hoàn thiện README cho setup, ingest, server và test `/ask`
+## API Endpoints
 
-### Phase 4: Sau MVP
+- `GET /`: trả về web UI
+- `GET /health`: kiểm tra trạng thái ứng dụng
+- `POST /ask`: truy xuất chunk liên quan và trả về `answer` cùng `sources`
+- `POST /ingest`: build lại Chroma DB từ file Markdown
 
-- Thêm Ollama fallback
-- Thêm chat history
-- Thêm upload file
-- Thêm frontend
-- Thêm streaming response
-- Thêm metadata filtering
+Ví dụ request `POST /ask`:
 
-## Thứ tự nên làm ngay
+```json
+{
+  "question": "Ruvie là gì?"
+}
+```
 
-1. `config.py`
-2. `llm.py`
-3. `test_query.py`
-4. `POST /ask`
-5. `POST /ingest`
-6. `README.md`
+Ví dụ response:
 
-## Task tiếp theo
-
-- Tạo `config.py` và `.env`
+```json
+{
+  "status": "success",
+  "message": "Answer generated successfully.",
+  "data": {
+    "answer": "...",
+    "sources": [
+      {
+        "file": "data/markdown/intro.md",
+        "preview": "..."
+      }
+    ]
+  }
+}
+```

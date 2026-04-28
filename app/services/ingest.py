@@ -6,11 +6,13 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_chroma import Chroma
 
+from app.core.config import settings
 
-MARKDOWN_DIR = Path("data/markdown")
-CHROMA_DIR = Path("chroma_db")
 
-COLLECTION_NAME = "ruvie_markdown"
+MARKDOWN_DIR = settings.MARKDOWN_DIR
+CHROMA_DIR = settings.CHROMA_DIR
+
+COLLECTION_NAME = settings.CHROMA_COLLECTION
 
 def load_markdown_documents():
     loader = DirectoryLoader(
@@ -71,5 +73,5 @@ def ingest_documents():
     print(f"Chroma DB saved at: {CHROMA_DIR}")
 
 
-if __name__ == "__main__":
-    ingest_documents()
+# if __name__ == "__main__":
+#     ingest_documents()

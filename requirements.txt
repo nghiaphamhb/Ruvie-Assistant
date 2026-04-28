@@ -10,3 +10,5 @@ langchain-chroma
 
 fastembed
 chromadb
+
+openai

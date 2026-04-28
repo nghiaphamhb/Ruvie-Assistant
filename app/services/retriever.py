@@ -1,11 +1,10 @@
-from pathlib import Path
-
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_chroma import Chroma
 
+from app.core.config import settings
 
-CHROMA_DIR = Path("chroma_db")
-COLLECTION_NAME = "ruvie_markdown"
+CHROMA_DIR = settings.CHROMA_DIR
+COLLECTION_NAME = settings.CHROMA_COLLECTION
 
 def get_vector_store():
     embeddings = FastEmbedEmbeddings()

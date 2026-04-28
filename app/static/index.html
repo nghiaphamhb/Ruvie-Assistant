@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ruvie</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .header {
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 36px;
+      color: #38bdf8;
+    }
+
+    .header p {
+      color: #94a3b8;
+    }
+
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #e5e7eb;
+      padding: 14px;
+      font-size: 16px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      background: #38bdf8;
+      color: #020617;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .result {
+      margin-top: 24px;
+    }
+
+    .answer {
+      white-space: pre-wrap;
+      line-height: 1.6;
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .sources {
+      margin-top: 20px;
+    }
+
+    .source-item {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+
+    .source-file {
+      color: #38bdf8;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .source-preview {
+      color: #cbd5e1;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    .error {
+      margin-top: 20px;
+      color: #fca5a5;
+    }
+
+    .loading {
+      margin-top: 20px;
+      color: #facc15;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Ruvie</h1>
+      <p>Ask questions based on your local Markdown knowledge base.</p>
+    </div>
+
+    <div class="card">
+      <textarea id="questionInput" placeholder="Nhập câu hỏi của bạn..."></textarea>
+      <br />
+      <button id="askButton" onclick="askQuestion()">Ask Ruvie</button>
+
+      <div id="loading" class="loading" style="display: none;">
+        Ruvie is thinking...
+      </div>
+
+      <div id="error" class="error"></div>
+
+      <div id="result" class="result" style="display: none;">
+        <h2>Answer</h2>
+        <div id="answer" class="answer"></div>
+
+        <div class="sources">
+          <h2>Sources</h2>
+          <div id="sources"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function askQuestion() {
+      const questionInput = document.getElementById("questionInput");
+      const askButton = document.getElementById("askButton");
+      const loading = document.getElementById("loading");
+      const errorBox = document.getElementById("error");
+      const resultBox = document.getElementById("result");
+      const answerBox = document.getElementById("answer");
+      const sourcesBox = document.getElementById("sources");
+
+      const question = questionInput.value.trim();
+
+      if (!question) {
+        errorBox.textContent = "Please enter a question.";
+        return;
+      }
+
+      askButton.disabled = true;
+      loading.style.display = "block";
+      errorBox.textContent = "";
+      resultBox.style.display = "none";
+      answerBox.textContent = "";
+      sourcesBox.innerHTML = "";
+
+      try {
+        const response = await fetch("/ask", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            question: question,
+          }),
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.detail || "Request failed.");
+        }
+
+        const data = payload.data;
+
+        answerBox.textContent = data.answer;
+
+        data.sources.forEach((source) => {
+          const sourceItem = document.createElement("div");
+          sourceItem.className = "source-item";
+
+          const sourceFile = document.createElement("div");
+          sourceFile.className = "source-file";
+          sourceFile.textContent = source.file;
+
+          const sourcePreview = document.createElement("div");
+          sourcePreview.className = "source-preview";
+          sourcePreview.textContent = source.preview;
+
+          sourceItem.appendChild(sourceFile);
+          sourceItem.appendChild(sourcePreview);
+          sourcesBox.appendChild(sourceItem);
+        });
+
+        resultBox.style.display = "block";
+      } catch (error) {
+        errorBox.textContent = error.message;
+      } finally {
+        askButton.disabled = false;
+        loading.style.display = "none";
+      }
+    }
+  </script>
+</body>
+</html>

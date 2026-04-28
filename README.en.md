@@ -3,7 +3,7 @@
 ![Ruvie Agent Wallpaper](assets/wallpaper.png)
 
 <p align="center">
-  <strong>Minimal Markdown-first RAG backend built with FastAPI, LangChain, FastEmbed, and Chroma</strong>
+  <strong>Minimal local RAG app for Markdown knowledge bases, built with FastAPI, Chroma, FastEmbed, and an OpenRouter-compatible LLM client.</strong>
 </p>
 
 ## Language
@@ -14,15 +14,33 @@
 
 ## Overview
 
-Ruvie Agent is an early-stage RAG backend that ingests Markdown documents, splits them into chunks, stores embeddings in Chroma, and retrieves relevant context for user questions. The current codebase already includes document ingestion, vector search, and a basic FastAPI health endpoint.
+Ruvie Agent is a lightweight RAG application for local Markdown knowledge bases. It ingests Markdown files, splits them into chunks, stores embeddings in Chroma, retrieves relevant context, and generates answers with source previews through both a web UI and a JSON API.
 
-## Current Project State
+## App Preview
 
-- `app/services/ingest.py`: loads Markdown from `data/markdown`, chunks content, embeds with `FastEmbedEmbeddings`, and writes to `chroma_db`
-- `app/services/retriever.py`: performs similarity search on the Chroma collection
-- `app/main.py`: exposes a minimal `/health` endpoint
-- `data/markdown/`: source knowledge base in Markdown
+![Ruvie App Example](assets/example.png)
+
+## Project Structure
+
+- `app/main.py`: bootstraps FastAPI, mounts static files, serves the UI at `/`, and includes API routes
+- `app/api/routes.py`: exposes `POST /ask` and `POST /ingest`
+- `app/core/config.py`: loads environment variables from `.env`
+- `app/core/logging_config.py`: configures application logging
+- `app/services/ingest.py`: loads Markdown files, splits them into chunks, and persists embeddings to Chroma
+- `app/services/retriever.py`: performs similarity search against the local vector store
+- `app/services/llm.py`: builds the RAG prompt and generates answers through the OpenAI SDK with an OpenRouter-compatible base URL
+- `app/static/index.html`: simple browser UI for asking questions and viewing answers with sources
+- `data/markdown/`: local Markdown knowledge base
 - `chroma_db/`: generated local vector database
+
+## Included Features
+
+- Local Markdown ingestion
+- Chroma-backed vector search
+- FastEmbed embeddings
+- Answer generation with source previews
+- Simple UI at `GET /`
+- API endpoints for ask and ingest workflows
 
 ## Quick Start
 
@@ -30,50 +48,62 @@ Ruvie Agent is an early-stage RAG backend that ingests Markdown documents, split
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python app/services/ingest.py
+copy .env-example .env
 uvicorn app.main:app --reload
 ```
 
-## Roadmap
+After the server starts, open `http://localhost:8000`.
 
-### Phase 1: Finish the RAG core
+## Environment Variables
 
-- Task 1: create `config.py` to load `LLM_API_KEY`, `LLM_MODEL`, `CHROMA_DIR`, `MARKDOWN_DIR` from `.env`
-- Task 2: create `app/services/llm.py` for `context + question -> LLM -> answer`
-- Task 3: add a strict RAG prompt so answers only use provided context
-- Task 4: create `test_query.py` to test retrieval and answer generation before FastAPI integration
+Configure `.env` with:
 
-### Phase 2: Add FastAPI endpoints
+- `LLM_API_KEY`
+- `LLM_MODEL`
+- `MARKDOWN_DIR`
+- `CHROMA_DIR`
+- `CHROMA_COLLECTION`
+- `OPENROUTER_BASE_URL`
+- `APP_NAME`
+- `APP_URL`
 
-- Task 5: add `AskRequest` and `AskResponse` Pydantic schemas
-- Task 6: add `POST /ask` to retrieve chunks, call the LLM, and return answer plus sources
-- Task 7: add `POST /ingest` to re-run `ingest_documents()`
-- Task 8: register API routes in `main.py`
+## Basic Usage
 
-### Phase 3: Cleanup and debugging
+1. Add Markdown files to `data/markdown`
+2. Start the server
+3. Open the browser UI at `http://localhost:8000`
+4. If the vector store is not built yet, call `POST /ingest`
+5. Ask a question and inspect the returned answer and sources
 
-- Task 9: handle missing Chroma DB, missing Markdown files, empty question, missing LLM key, and no relevant chunks
-- Task 10: return clearer source objects with `file` and `preview`
-- Task 11: expand README with setup, ingest, server, and `/ask` usage
+## API Endpoints
 
-### Phase 4: After MVP
+- `GET /`: serves the web UI
+- `GET /health`: returns application status
+- `POST /ask`: retrieves relevant chunks and returns `answer` plus `sources`
+- `POST /ingest`: rebuilds the Chroma database from Markdown files
 
-- Add Ollama fallback
-- Add chat history
-- Add file upload
-- Add frontend
-- Add streaming responses
-- Add metadata filtering
+Example `POST /ask` request:
 
-## Recommended Next Order
+```json
+{
+  "question": "What is Ruvie?"
+}
+```
 
-1. `config.py`
-2. `llm.py`
-3. `test_query.py`
-4. `POST /ask`
-5. `POST /ingest`
-6. `README.md`
+Example response shape:
 
-## Immediate Next Task
-
-- Create `config.py` and `.env`
+```json
+{
+  "status": "success",
+  "message": "Answer generated successfully.",
+  "data": {
+    "answer": "...",
+    "sources": [
+      {
+        "file": "data/markdown/intro.md",
+        "preview": "..."
+      }
+    ]
+  }
+}
+```
