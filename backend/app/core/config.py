@@ -17,4 +17,6 @@ class Settings:
     APP_NAME: str = os.getenv("APP_NAME")
     APP_URL: str = os.getenv("APP_URL")
 
+    FRONT_END_URL: str = os.getenv("FRONT_END_URL")
+
 settings = Settings()
