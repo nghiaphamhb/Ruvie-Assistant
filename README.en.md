@@ -1,9 +1,9 @@
 # Ruvie Agent
 
-![Ruvie Agent Wallpaper](assets/wallpaper.png)
+![Ruvie Agent Wallpaper](frontend/src/assets/wallpaper.png)
 
 <p align="center">
-  <strong>Minimal local RAG app for Markdown knowledge bases, built with FastAPI, Chroma, FastEmbed, and an OpenRouter-compatible LLM client.</strong>
+  <strong>Minimal local RAG application for Markdown knowledge bases, built with a FastAPI backend and a React/Vite frontend.</strong>
 </p>
 
 ## Language
@@ -14,24 +14,25 @@
 
 ## Overview
 
-Ruvie Agent is a lightweight RAG application for local Markdown knowledge bases. It ingests Markdown files, splits them into chunks, stores embeddings in Chroma, retrieves relevant context, and generates answers with source previews through both a web UI and a JSON API.
+Ruvie Agent is a lightweight local RAG project for Markdown documents. The backend indexes Markdown files into Chroma with FastEmbed embeddings, retrieves relevant chunks, and sends grounded prompts to an OpenRouter-compatible LLM endpoint. The frontend provides a simple chat interface for asking questions, uploading new documents, and rebuilding the knowledge base.
 
-## App Preview
+## Repository Layout
 
-![Ruvie App Example](assets/example.png)
+- `backend/`: FastAPI API, ingestion pipeline, retrieval, and LLM integration
+- `backend/data/markdown/`: local Markdown knowledge base
+- `frontend/`: React 19 + Vite client
+- `frontend/src/api/ruvieApi.js`: browser API client for ask, ingest, and upload flows
 
 ## Project Structure
 
-- `app/main.py`: bootstraps FastAPI, mounts static files, serves the UI at `/`, and includes API routes
-- `app/api/routes.py`: exposes `POST /ask` and `POST /ingest`
-- `app/core/config.py`: loads environment variables from `.env`
-- `app/core/logging_config.py`: configures application logging
-- `app/services/ingest.py`: loads Markdown files, splits them into chunks, and persists embeddings to Chroma
-- `app/services/retriever.py`: performs similarity search against the local vector store
-- `app/services/llm.py`: builds the RAG prompt and generates answers through the OpenAI SDK with an OpenRouter-compatible base URL
-- `app/static/index.html`: simple browser UI for asking questions and viewing answers with sources
-- `data/markdown/`: local Markdown knowledge base
-- `chroma_db/`: generated local vector database
+- `backend/app/main.py`: bootstraps FastAPI, CORS, health check, and API routes
+- `backend/app/api/routes.py`: exposes `POST /ask`, `POST /ingest`, and `POST /upload`
+- `backend/app/core/config.py`: loads backend environment variables
+- `backend/app/services/ingest.py`: loads Markdown files, splits them into chunks, and persists embeddings to Chroma
+- `backend/app/services/retriever.py`: runs similarity search against the local vector store
+- `backend/app/services/llm.py`: builds the RAG prompt and calls the LLM
+- `frontend/src/App.jsx`: top-level chat application
+- `frontend/src/components/UploadPanel.jsx`: uploads `.md` or `.txt` files and triggers re-indexing
 
 ## Included Features
 
@@ -39,12 +40,16 @@ Ruvie Agent is a lightweight RAG application for local Markdown knowledge bases.
 - Chroma-backed vector search
 - FastEmbed embeddings
 - Answer generation with source previews
-- Simple UI at `GET /`
-- API endpoints for ask and ingest workflows
+- React chat UI
+- Document upload for `.md` and `.txt`
+- Manual knowledge base rebuild from the frontend
 
 ## Quick Start
 
+### Backend
+
 ```bash
+cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -52,11 +57,24 @@ copy .env-example .env
 uvicorn app.main:app --reload
 ```
 
-After the server starts, open `http://localhost:8000`.
+Backend default URL: `http://127.0.0.1:8000`
 
-## Environment Variables
+### Frontend
 
-Configure `.env` with:
+```bash
+cd frontend
+npm install
+copy .env.example .env
+npm run dev
+```
+
+Frontend default URL: `http://127.0.0.1:5173`
+
+Run backend and frontend in separate terminals.
+
+## Backend Environment Variables
+
+Configure `backend/.env` with:
 
 - `LLM_API_KEY`
 - `LLM_MODEL`
@@ -66,21 +84,37 @@ Configure `.env` with:
 - `OPENROUTER_BASE_URL`
 - `APP_NAME`
 - `APP_URL`
+- `FRONT_END_URL`
+
+Example values are already provided in `backend/.env-example`.
+
+## Frontend Environment Variables
+
+Configure `frontend/.env` with:
+
+- `VITE_API_BASE_URL`
+
+Typical local value:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
 
 ## Basic Usage
 
-1. Add Markdown files to `data/markdown`
-2. Start the server
-3. Open the browser UI at `http://localhost:8000`
-4. If the vector store is not built yet, call `POST /ingest`
-5. Ask a question and inspect the returned answer and sources
+1. Add Markdown files to `backend/data/markdown`
+2. Start the backend
+3. Start the frontend
+4. Rebuild the knowledge base with `POST /ingest` or the frontend rebuild action
+5. Ask a question in the chat UI
+6. Upload additional `.md` or `.txt` files when needed
 
 ## API Endpoints
 
-- `GET /`: serves the web UI
 - `GET /health`: returns application status
 - `POST /ask`: retrieves relevant chunks and returns `answer` plus `sources`
 - `POST /ingest`: rebuilds the Chroma database from Markdown files
+- `POST /upload`: stores an uploaded `.md` or `.txt` file in `MARKDOWN_DIR` and re-indexes the knowledge base
 
 Example `POST /ask` request:
 

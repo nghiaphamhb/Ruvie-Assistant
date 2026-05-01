@@ -1,11 +1,13 @@
-from fastapi import APIRouter, HTTPException
+import logging
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
+from app.core.config import settings
 from app.services.retriever import search_documents
 from app.services.llm import generate_answer
 from app.services.ingest import ingest_documents
-
-import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -13,9 +15,11 @@ router = APIRouter()
 class AskRequest(BaseModel):
     question: str
 
+
 class Source(BaseModel):
     file: str
     preview: str
+
 
 class AskData(BaseModel):
     answer: str
@@ -26,14 +30,24 @@ class AskResponse(BaseModel):
     message: str
     data: AskData
 
+
 class IngestData(BaseModel):
     documents_indexed: int | None = None
-
 
 class IngestResponse(BaseModel):
     status: str
     message: str
     data: IngestData | None = None
+
+
+class UploadData(BaseModel):
+    filename: str
+    saved_path: str
+
+class UploadResponse(BaseModel):
+    status: str
+    message: str
+    data: UploadData
 
 def build_context(results) -> str:
     context_parts = []
@@ -120,4 +134,56 @@ def ingest():
         raise HTTPException(
             status_code=500,
             detail=f"Ingestion failed: {str(e)}",
+        )
+    
+@router.post("/upload", response_model=UploadResponse)
+async def upload_document(file: UploadFile = File(...)):
+    try:
+        allowed_extensions = {".md", ".txt"}
+
+        filename = file.filename or ""
+        file_ext = Path(filename).suffix.lower()
+
+        if file_ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail="Only .md and .txt files are allowed.",
+            )
+        
+        upload_dir = settings.MARKDOWN_DIR
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        saved_path = upload_dir / filename
+
+        content = await file.read()
+        if not content:
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded file is empty.",
+            )
+        saved_path.write_bytes(content)
+
+        logger.info("Uploaded file saved: %s", saved_path)
+
+        ingest_documents()
+
+        logger.info("Knowledge base rebuilt after upload")
+
+        return UploadResponse(
+            status="success",
+            message="File uploaded and indexed successfully.",
+            data=UploadData(
+                filename=filename,
+                saved_path=str(saved_path),
+            ),
+        )
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.exception("Upload failed")
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Upload failed: {str(e)}",
         )
