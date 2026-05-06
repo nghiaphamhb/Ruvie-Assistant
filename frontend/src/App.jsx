@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { askRuvie, ingestDocuments } from "./frontend/src/api/ruvieApi";
-import AppShell from "./frontend/src/components/layout/AppShell";
+import { askRuvie, ingestDocuments } from "./api/ruvieApi";
+import AppShell from "./components/layout/AppShell";
 import "./index.css";
 
 function createNewChat() {
