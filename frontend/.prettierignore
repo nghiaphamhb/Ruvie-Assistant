@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+coverage
+.vite
+.env
+.env.*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

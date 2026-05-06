@@ -1,4 +1,6 @@
 .env
+.env.local
+.env.*.local
 .venv/
 __pycache__/
 *.py[cod]
@@ -6,8 +8,15 @@ __pycache__/
 
 chroma_db/
 
-**/node_modules 
+node_modules/
+**/node_modules
 .vite/
+dist/
+build/
+coverage/
 frontend/dist/
-
-TASK.md
+.eslintcache
+.DS_Store
+.idea/
+*.log
+*.log.*
