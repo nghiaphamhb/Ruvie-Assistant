@@ -1,7 +1,15 @@
-import { Database, MessageSquarePlus } from "lucide-react";
+import { Database, MessageSquarePlus, Trash2 } from "lucide-react";
 import UploadPanel from "../documents/UploadPanel";
 
-function Sidebar({ chats, activeChatId, onNewChat, onSelectChat, onIngest, onUploaded }) {
+function Sidebar({
+  chats,
+  activeChatId,
+  onNewChat,
+  onClearAllChats,
+  onSelectChat,
+  onIngest,
+  onUploaded,
+}) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -22,6 +30,11 @@ function Sidebar({ chats, activeChatId, onNewChat, onSelectChat, onIngest, onUpl
       <button className="side-button" onClick={onIngest}>
         <Database size={18} />
         Rebuild knowledge
+      </button>
+
+      <button className="side-button side-button-danger" onClick={onClearAllChats}>
+        <Trash2 size={18} />
+        Clear all chats
       </button>
 
       <div className="chat-history">

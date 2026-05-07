@@ -1,7 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { askRuvie, ingestDocuments } from "./api/ruvieApi";
 import AppShell from "./components/layout/AppShell";
 import "./index.css";
+
+const CHAT_STORAGE_KEY = "ruvie.chats";
+const ACTIVE_CHAT_STORAGE_KEY = "ruvie.activeChatId";
 
 function createNewChat() {
   const id = crypto.randomUUID();
@@ -20,14 +23,88 @@ function createNewChat() {
   };
 }
 
+function createAssistantMessage(content, sources = [], id = crypto.randomUUID()) {
+  return {
+    id,
+    role: "assistant",
+    content,
+    sources,
+  };
+}
+
+function createAssistantErrorMessage(error, id) {
+  return createAssistantMessage(`Lỗi: ${error.message}`, [], id);
+}
+
+function getChatTitleFromMessages(messages) {
+  const firstUserMessage = messages.find((message) => message.role === "user");
+
+  return firstUserMessage ? firstUserMessage.content.slice(0, 32) : "New chat";
+}
+
+function getInitialChatState() {
+  if (typeof window === "undefined") {
+    const firstChat = createNewChat();
+
+    return {
+      chats: [firstChat],
+      activeChatId: firstChat.id,
+    };
+  }
+
+  try {
+    const storedChats = window.localStorage.getItem(CHAT_STORAGE_KEY);
+    const storedActiveChatId = window.localStorage.getItem(ACTIVE_CHAT_STORAGE_KEY);
+
+    if (!storedChats || !storedActiveChatId) {
+      throw new Error("Missing chat storage");
+    }
+
+    const parsedChats = JSON.parse(storedChats);
+
+    if (!Array.isArray(parsedChats) || parsedChats.length === 0) {
+      throw new Error("Invalid chat storage");
+    }
+
+    const hasActiveChat = parsedChats.some((chat) => chat.id === storedActiveChatId);
+
+    if (!hasActiveChat) {
+      throw new Error("Missing active chat");
+    }
+
+    return {
+      chats: parsedChats,
+      activeChatId: storedActiveChatId,
+    };
+  } catch {
+    const firstChat = createNewChat();
+
+    return {
+      chats: [firstChat],
+      activeChatId: firstChat.id,
+    };
+  }
+}
+
 function App() {
-  const firstChat = useMemo(() => createNewChat(), []);
-
-  const [chats, setChats] = useState([firstChat]);
-  const [activeChatId, setActiveChatId] = useState(firstChat.id);
+  const initialChatState = useMemo(() => getInitialChatState(), []);
+  const [chats, setChats] = useState(initialChatState.chats);
+  const [activeChatId, setActiveChatId] = useState(initialChatState.activeChatId);
   const [loading, setLoading] = useState(false);
+  const [regeneratingMessageId, setRegeneratingMessageId] = useState(null);
 
-  const activeChat = chats.find((chat) => chat.id === activeChatId);
+  const activeChat = chats.find((chat) => chat.id === activeChatId) ?? null;
+
+  useEffect(() => {
+    window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chats));
+    window.localStorage.setItem(ACTIVE_CHAT_STORAGE_KEY, activeChatId);
+  }, [activeChatId, chats]);
+
+  useEffect(() => {
+    if (activeChat || chats.length === 0) return;
+
+    setActiveChatId(chats[0].id);
+  }, [activeChat, chats]);
 
   function updateActiveChat(updater) {
     setChats((prevChats) =>
@@ -42,6 +119,15 @@ function App() {
     const newChat = createNewChat();
 
     setChats((prev) => [newChat, ...prev]);
+    setActiveChatId(newChat.id);
+  }
+
+  function handleClearAllChats() {
+    const newChat = createNewChat();
+
+    window.localStorage.removeItem(CHAT_STORAGE_KEY);
+    window.localStorage.removeItem(ACTIVE_CHAT_STORAGE_KEY);
+    setChats([newChat]);
     setActiveChatId(newChat.id);
   }
 
@@ -64,29 +150,14 @@ function App() {
     try {
       const data = await askRuvie(question);
 
-      const assistantMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.answer,
-        sources: data.sources || [],
-      };
-
       updateActiveChat((chat) => ({
         ...chat,
-        messages: [...chat.messages, assistantMessage],
+        messages: [...chat.messages, createAssistantMessage(data.answer, data.sources || [])],
       }));
     } catch (error) {
       updateActiveChat((chat) => ({
         ...chat,
-        messages: [
-          ...chat.messages,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: `Lỗi: ${error.message}`,
-            sources: [],
-          },
-        ],
+        messages: [...chat.messages, createAssistantErrorMessage(error)],
       }));
     } finally {
       setLoading(false);
@@ -103,26 +174,13 @@ function App() {
         ...chat,
         messages: [
           ...chat.messages,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: "Đã rebuild knowledge base thành công.",
-            sources: [],
-          },
+          createAssistantMessage("Đã rebuild knowledge base thành công."),
         ],
       }));
     } catch (error) {
       updateActiveChat((chat) => ({
         ...chat,
-        messages: [
-          ...chat.messages,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: `Ingest failed: ${error.message}`,
-            sources: [],
-          },
-        ],
+        messages: [...chat.messages, createAssistantMessage(`Ingest failed: ${error.message}`)],
       }));
     } finally {
       setLoading(false);
@@ -132,16 +190,102 @@ function App() {
   function handleUploaded(message) {
     updateActiveChat((chat) => ({
       ...chat,
-      messages: [
-        ...chat.messages,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: message,
-          sources: [],
-        },
-      ],
+      messages: [...chat.messages, createAssistantMessage(message)],
     }));
+  }
+
+  async function handleRegenerate(messageId) {
+    const currentChat = chats.find((chat) => chat.id === activeChatId);
+
+    if (!currentChat) return;
+
+    const messageIndex = currentChat.messages.findIndex((message) => message.id === messageId);
+
+    if (messageIndex === -1) return;
+
+    const previousUserMessage = [...currentChat.messages]
+      .slice(0, messageIndex)
+      .reverse()
+      .find((message) => message.role === "user");
+
+    if (!previousUserMessage) return;
+
+    setLoading(true);
+    setRegeneratingMessageId(messageId);
+
+    try {
+      const data = await askRuvie(previousUserMessage.content);
+
+      updateActiveChat((chat) => ({
+        ...chat,
+        messages: chat.messages.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                content: data.answer,
+                sources: data.sources || [],
+              }
+            : message
+        ),
+      }));
+    } catch (error) {
+      updateActiveChat((chat) => ({
+        ...chat,
+        messages: chat.messages.map((message) =>
+          message.id === messageId ? createAssistantErrorMessage(error, message.id) : message
+        ),
+      }));
+    } finally {
+      setRegeneratingMessageId(null);
+      setLoading(false);
+    }
+  }
+
+  async function handleEditUserMessage(messageId, nextQuestion) {
+    const trimmedQuestion = nextQuestion.trim();
+    const currentChat = chats.find((chat) => chat.id === activeChatId);
+
+    if (!currentChat || !trimmedQuestion) return false;
+
+    const messageIndex = currentChat.messages.findIndex((message) => message.id === messageId);
+
+    if (messageIndex === -1 || currentChat.messages[messageIndex]?.role !== "user") {
+      return false;
+    }
+
+    const updatedUserMessage = {
+      ...currentChat.messages[messageIndex],
+      content: trimmedQuestion,
+    };
+    const nextMessages = [...currentChat.messages.slice(0, messageIndex), updatedUserMessage];
+
+    updateActiveChat((chat) => ({
+      ...chat,
+      title: getChatTitleFromMessages(nextMessages),
+      messages: nextMessages,
+    }));
+
+    setLoading(true);
+
+    try {
+      const data = await askRuvie(trimmedQuestion);
+
+      updateActiveChat((chat) => ({
+        ...chat,
+        messages: [...chat.messages, createAssistantMessage(data.answer, data.sources || [])],
+      }));
+
+      return true;
+    } catch (error) {
+      updateActiveChat((chat) => ({
+        ...chat,
+        messages: [...chat.messages, createAssistantErrorMessage(error)],
+      }));
+
+      return false;
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -151,10 +295,14 @@ function App() {
       activeChat={activeChat}
       loading={loading}
       onNewChat={handleNewChat}
+      onClearAllChats={handleClearAllChats}
       onSelectChat={setActiveChatId}
       onAsk={handleAsk}
+      onEditUserMessage={handleEditUserMessage}
+      onRegenerate={handleRegenerate}
       onIngest={handleIngest}
       onUploaded={handleUploaded}
+      regeneratingMessageId={regeneratingMessageId}
     />
   );
 }

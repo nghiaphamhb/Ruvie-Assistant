@@ -7,10 +7,14 @@ function AppShell({
   activeChat,
   loading,
   onNewChat,
+  onClearAllChats,
   onSelectChat,
   onAsk,
+  onEditUserMessage,
+  onRegenerate,
   onIngest,
   onUploaded,
+  regeneratingMessageId,
 }) {
   return (
     <div className="app-shell">
@@ -18,12 +22,20 @@ function AppShell({
         chats={chats}
         activeChatId={activeChatId}
         onNewChat={onNewChat}
+        onClearAllChats={onClearAllChats}
         onSelectChat={onSelectChat}
         onIngest={onIngest}
         onUploaded={onUploaded}
       />
 
-      <ChatView chat={activeChat} loading={loading} onAsk={onAsk} />
+      <ChatView
+        chat={activeChat}
+        loading={loading}
+        onAsk={onAsk}
+        onEditUserMessage={onEditUserMessage}
+        onRegenerate={onRegenerate}
+        regeneratingMessageId={regeneratingMessageId}
+      />
     </div>
   );
 }

@@ -1,7 +1,14 @@
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 
-function ChatView({ chat, loading, onAsk }) {
+function ChatView({
+  chat,
+  loading,
+  onAsk,
+  onEditUserMessage,
+  onRegenerate,
+  regeneratingMessageId,
+}) {
   const hasConversation = chat?.messages?.some((m) => m.role === "user");
 
   return (
@@ -33,7 +40,13 @@ function ChatView({ chat, loading, onAsk }) {
           </div>
         ) : (
           <>
-            <MessageList messages={chat?.messages || []} loading={loading} />
+            <MessageList
+              messages={chat?.messages || []}
+              loading={loading}
+              onEditUserMessage={onEditUserMessage}
+              onRegenerate={onRegenerate}
+              regeneratingMessageId={regeneratingMessageId}
+            />
             <ChatInput onSend={onAsk} disabled={loading} />
           </>
         )}
