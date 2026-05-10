@@ -1,6 +1,6 @@
-# Ruvie Agent
+# Ruvie Assistant
 
-![Ruvie Agent Wallpaper](frontend/src/assets/wallpaper.png)
+![Ruvie Assistant Wallpaper](frontend/src/assets/wallpaper.png)
 
 <p align="center">
   <strong>Minimal local RAG application for Markdown knowledge bases, built with a FastAPI backend and a React/Vite frontend.</strong>
@@ -8,7 +8,7 @@
 
 ## Overview
 
-Ruvie Agent is a lightweight local retrieval-augmented generation project for Markdown documents.
+Ruvie Assistant is a lightweight local retrieval-augmented generation project for Markdown documents.
 It is designed for simple, local-first knowledge workflows:
 
 - index Markdown files into a local vector database
@@ -28,6 +28,12 @@ The repository is split into two main parts:
 - FastEmbed embeddings
 - Grounded answer generation with source previews
 - React chat UI with assistant/user message rendering
+- Local multi-chat history persisted in `localStorage`
+- Edit-and-retry flow for user messages
+- Regenerate flow for the latest assistant answer
+- Markdown rendering in assistant messages
+- Collapsible source previews in chat
+- Sticky chat input and auto-scroll behavior
 - Upload support for `.md` and `.txt` files
 - Manual knowledge base rebuild from the frontend
 
@@ -50,6 +56,8 @@ The repository is split into two main parts:
 - JavaScript + JSX
 - CSS
 - `lucide-react`
+- `react-markdown`
+- `remark-gfm`
 - ESLint
 - Prettier
 - Husky + lint-staged
@@ -149,7 +157,20 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 3. Start the frontend.
 4. Rebuild the knowledge base using `POST /ingest` or the rebuild action in the UI.
 5. Ask a question in the chat interface.
-6. Upload additional `.md` or `.txt` files when needed.
+6. Regenerate the latest assistant answer when you want a fresh retry.
+7. Edit a previous user message to truncate later messages and re-run the conversation from that point.
+8. Upload additional `.md` or `.txt` files when needed.
+9. Reload the page and continue from the locally saved chat history.
+
+## Frontend Chat UX
+
+- Assistant replies render Markdown, including paragraphs, bullet lists, numbered lists, inline code, fenced code blocks, and tables.
+- Source previews are shown in a collapsible section under assistant messages.
+- Only the latest assistant reply exposes `Regenerate`.
+- User messages expose `Edit`, with `Save` and `Cancel` inline actions.
+- Chat history is stored locally in the browser and restored automatically on reload.
+- The sidebar includes `Start a New Chat` and `Clear all chats`.
+- The chat input stays visible near the bottom of the viewport while scrolling.
 
 ## API Endpoints
 
@@ -162,7 +183,7 @@ Example `POST /ask` request:
 
 ```json
 {
-  "question": "What is Ruvie Agent?"
+  "question": "What is Ruvie Assistant?"
 }
 ```
 

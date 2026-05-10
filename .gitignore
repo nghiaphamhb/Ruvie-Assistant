@@ -20,3 +20,5 @@ frontend/dist/
 .idea/
 *.log
 *.log.*
+
+AGENTS.md

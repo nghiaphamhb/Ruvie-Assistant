@@ -13,6 +13,9 @@ The current product shape is a local knowledge assistant:
 - Users upload or ingest Markdown documents.
 - Backend indexes documents into Chroma.
 - Frontend sends chat questions to the backend and renders assistant responses plus sources.
+- Frontend keeps multi-chat history locally in `localStorage`.
+- Frontend supports assistant response regenerate and user message edit/re-ask flows.
+- Assistant messages support Markdown rendering for common rich text patterns.
 
 Do not store secrets, API keys, tokens, passwords, or private credentials in this file.
 
@@ -36,6 +39,8 @@ Do not store secrets, API keys, tokens, passwords, or private credentials in thi
 - JavaScript JSX, not TypeScript
 - CSS in a central `src/index.css`
 - `lucide-react` for icons
+- `react-markdown`
+- `remark-gfm`
 - ESLint
 - Prettier
 - Husky + lint-staged for pre-commit checks
@@ -106,14 +111,29 @@ frontend/
 - `frontend/src/App.jsx`: top-level app wiring.
 - `frontend/src/index.css`: main visual system and global styling.
 - `frontend/src/api/ruvieApi.js`: frontend API calls to backend.
-- `frontend/src/components/chat/ChatView.jsx`: main chat screen state rendering.
+- `frontend/src/components/chat/ChatView.jsx`: main chat screen state rendering and home/chat mode switching.
 - `frontend/src/components/chat/ChatInput.jsx`: user message input and send behavior.
-- `frontend/src/components/chat/MessageList.jsx`: message list rendering.
-- `frontend/src/components/chat/MessageBubble.jsx`: individual message UI, assistant actions.
-- `frontend/src/components/chat/SourceList.jsx`: retrieved source display.
+- `frontend/src/components/chat/MessageList.jsx`: message list rendering and auto-scroll behavior.
+- `frontend/src/components/chat/MessageBubble.jsx`: individual message UI, markdown rendering, edit/regenerate/copy actions.
+- `frontend/src/components/chat/SourceList.jsx`: collapsible retrieved source display.
 - `frontend/src/components/documents/UploadPanel.jsx`: upload/rebuild related controls.
 - `frontend/src/components/layout/AppShell.jsx`: app layout container.
-- `frontend/src/components/layout/Sidebar.jsx`: navigation/history/sidebar actions.
+- `frontend/src/components/layout/Sidebar.jsx`: navigation, chat history, clear-history, and sidebar actions.
+
+## Current Frontend Behavior
+
+- `App.jsx` is the source of truth for chat state.
+- `chats` is an array of chat objects with `id`, `title`, and `messages`.
+- `activeChatId` tracks the selected chat.
+- Chat history is persisted in `localStorage` under app-specific keys and restored on reload.
+- If persisted history is missing or invalid, the app creates a fresh default chat.
+- `New Chat` prepends a new chat and keeps existing chats intact.
+- `Clear all chats` removes persisted history and resets the UI to a single new chat.
+- Assistant messages can be regenerated only for the last assistant reply tied to the latest user prompt.
+- User messages can be edited; saving truncates later messages and re-asks the backend with the new question.
+- Assistant messages render Markdown with GFM tables/lists/code support.
+- Sources are shown in a collapsible section.
+- The chat auto-scrolls on new messages/loading and the chat input is sticky near the bottom of the viewport.
 
 ## Coding Style Rules
 
@@ -141,6 +161,8 @@ frontend/
   - document/upload UI in `frontend/src/components/documents/`
 - When changing frontend behavior, check whether `frontend/src/index.css` also needs updates.
 - When changing API interaction, inspect both `frontend/src/api/ruvieApi.js` and backend route/service files.
+- When changing chat persistence or history behavior, inspect `frontend/src/App.jsx` and `frontend/src/components/layout/Sidebar.jsx` together.
+- When changing message rendering, inspect `frontend/src/components/chat/MessageBubble.jsx`, `MessageList.jsx`, and `SourceList.jsx` together.
 - After meaningful frontend changes, run available checks when practical:
   - `npm run lint`
   - `npm run format`
